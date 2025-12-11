@@ -7,8 +7,7 @@ node_modules/
 .env.production
 
 # Firebase credentials
-firebase-credentials.json
-afkty-aeaa1-firebase-adminsdk-*.json
+
 
 # Logs
 logs/
