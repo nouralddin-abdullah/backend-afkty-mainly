@@ -15,7 +15,7 @@ class FCMService {
   initialize() {
     try {
       // Load service account from file
-      const serviceAccountPath = join(__dirname, '../../afkty-aeaa1-firebase-adminsdk-fbsvc-9d75cd3db1.json');
+      const serviceAccountPath = join(__dirname, '../../afkty-aeaa1-firebase-adminsdk-fbsvc-b9c039931c.json');
       const serviceAccount = JSON.parse(readFileSync(serviceAccountPath, 'utf-8'));
 
       admin.initializeApp({
