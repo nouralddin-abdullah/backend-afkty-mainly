@@ -1,385 +1,269 @@
-# Afkty SDK Documentation
+# AFKTY SDK v3.0
 
-Version 2.0.0
-
-## Overview
-
-The Afkty SDK connects Roblox scripts to the Afkty backend for monitoring and mobile alerts. When your script disconnects unexpectedly, the mobile app receives a notification.
-
-## Requirements
-
-- Executor with WebSocket support
-- Valid connection key from the Afkty API
-- Backend server running and accessible
-
-### Supported Executors
-
-| Executor | Status |
-|----------|--------|
-| Synapse X | Full Support |
-| Script-Ware | Full Support |
-| Fluxus | Full Support |
-| Wave | Full Support |
-| Seliware | Full Support |
-| Krnl | Partial |
+Get alerts on your phone when your Roblox script crashes or gets kicked.
 
 ---
 
-## Installation
+## Setup
 
 ```lua
-local Afkty = loadstring(game:HttpGet("YOUR_SDK_URL"))()
-```
+local AFKTY = loadstring(game:HttpGet("https://api.afkty.com/sdk/v3"))()
 
----
-
-## Quick Start
-
-```lua
-local Afkty = loadstring(game:HttpGet("YOUR_SDK_URL"))()
-
-Afkty:Init({
-    serverUrl = "ws://YOUR_SERVER:3000/ws",
-    connectionKey = "afk-xxx-xxx"
-})
-
-Afkty:Log("Script started")
-Afkty:SetStatus("Farming Zone 1")
-
-Afkty.OnCommand:Connect(function(data)
-    if data.command == "stop" then
-        Afkty:Disconnect("Stopped by user")
-    end
-end)
-```
-
----
-
-## Configuration
-
-### Afkty:Init(options)
-
-| Option | Type | Default | Description |
-|--------|------|---------|-------------|
-| serverUrl | string | required | WebSocket server URL |
-| connectionKey | string | required | Auth key from API |
-| autoReconnect | boolean | true | Reconnect on disconnect |
-| heartbeatInterval | number | 10 | Seconds between heartbeats |
-| maxReconnectAttempts | number | 10 | Max retry attempts |
-| debug | boolean | false | Enable console logging |
-| queueOfflineMessages | boolean | true | Queue messages while disconnected |
-| statusCooldown | number | 10 | Min seconds between status updates |
-
-```lua
-Afkty:Init({
-    serverUrl = "ws://192.168.1.9:3000/ws",
-    connectionKey = "afk-123-456",
-    autoReconnect = true,
-    heartbeatInterval = 10,
-    debug = true
+AFKTY:Init({
+    hubKey = "hub_live_xxx",  -- From the script developer
+    userToken = "ABC123"      -- Your 6-character key from AFKTY app
 })
 ```
+
+> **Note:** Both `hubKey` and `userToken` are required. The hubKey comes from the script developer, and your userToken is found in the AFKTY mobile app under "Get My Key".
 
 ---
 
 ## Methods
 
-### Afkty:Log(message, level)
-
-Send a log message to the mobile app. Logs are batched automatically to reduce network traffic.
-
+### Set Status
 ```lua
-Afkty:Log("Collected 50 coins")
-Afkty:Log("Low health", "warn")
-Afkty:Log("Target not found", "error")
+AFKTY:SetStatus("Farming Zone 1")
 ```
 
-**Levels:** `info`, `warn`, `error`, `debug`
-
----
-
-### Afkty:LogNow(message, level)
-
-Send a log immediately without batching. Use for critical messages.
-
+### Send Log
 ```lua
-Afkty:LogNow("CRITICAL: Script crashed", "error")
+AFKTY:Log("Collected 50 coins")
+AFKTY:Log("Low health!", "warn")
+AFKTY:Log("Error occurred", "error")
 ```
 
----
-
-### Afkty:SetStatus(status, data, force)
-
-Update the status displayed on the mobile app. Includes built-in cooldown to prevent spam.
-
+### Send Notification
 ```lua
-Afkty:SetStatus("Farming Zone 1")
-
-Afkty:SetStatus("Collecting", { zone = "Desert", progress = 75 })
-
--- Force update (bypass cooldown)
-Afkty:SetStatus("Boss Fight", nil, true)
+AFKTY:Notify("Rare Drop!", "You found a Legendary Sword")
 ```
 
----
-
-### Afkty:Notify(title, message)
-
-Send a push notification to the mobile app. Rate limited to 5 per minute.
-
+### Send Critical Alert
 ```lua
-Afkty:Notify("Rare Drop!", "You found a Legendary Sword")
+AFKTY:Alert("Kicked from game!")
 ```
 
----
-
-### Afkty:Alert(reason, title)
-
-Send a **CRITICAL ALERT** with alarm sound to the mobile app. Use for important events like kicks, bans, or crashes. Rate limited to 5 per minute (shared with Notify).
-
+### Disconnect
 ```lua
--- Basic alert
-Afkty:Alert("Kicked from game - Teleport detected")
-
--- With custom title
-Afkty:Alert("Anti-cheat triggered", "⚠️ BANNED")
-
--- Use in error handlers
-pcall(function()
-    -- risky code
-end) or Afkty:Alert("Script crashed unexpectedly")
+AFKTY:Disconnect("Script finished")
 ```
 
----
-
-### Afkty:Disconnect(reason)
-
-Disconnect from the server and stop auto-reconnect.
-
+### Check Connection Status
 ```lua
-Afkty:Disconnect("Script completed")
-```
-
----
-
-### Afkty:IsConnected()
-
-Check if connected and authenticated.
-
-```lua
-if Afkty:IsConnected() then
-    Afkty:Log("Connection active")
+-- Check if connected
+if AFKTY:IsConnected() then
+    print("Connected to AFKTY!")
+else
+    print("Not connected")
 end
+
+-- Get session info (after connected)
+local info = AFKTY:GetSessionInfo()
+print("Session ID:", info.sessionId)
+print("Hub:", info.hubName)
+print("Username:", info.username)
 ```
 
 ---
 
-### Afkty:GetSessionId()
+## Connection & Crash Detection
 
-Get the current session ID.
+### How It Works
+
+1. **Connect** - SDK connects to AFKTY server with your keys
+2. **Heartbeat** - SDK sends a heartbeat every 10 seconds
+3. **Crash Detection** - If heartbeat stops (game crash/kick), server triggers alert
+4. **Alert** - Your phone receives notification with loud alarm
+
+### Auto-Reconnect
+
+The SDK automatically reconnects if connection drops:
+- Starts with 3 second delay
+- Increases up to 60 seconds between retries
+- Retries up to 20 times before giving up
 
 ```lua
-local sessionId = Afkty:GetSessionId()
-```
-
----
-
-### Afkty:GetInfo()
-
-Get connection details.
-
-```lua
-local info = Afkty:GetInfo()
--- info.version, info.connected, info.authenticated, info.sessionId
+-- Disable auto-reconnect if needed
+AFKTY:Init({
+    hubKey = "hub_live_xxx",
+    userToken = "ABC123",
+    autoReconnect = false  -- Default is true
+})
 ```
 
 ---
 
 ## Events
 
-### Afkty.OnConnected
-
-Fired when authenticated with the server.
-
 ```lua
-Afkty.OnConnected:Connect(function(data)
-    print("Connected! Session:", data.sessionId)
+AFKTY.OnConnected:Connect(function()
+    print("Connected!")
 end)
-```
 
----
-
-### Afkty.OnDisconnected
-
-Fired when disconnected from the server.
-
-```lua
-Afkty.OnDisconnected:Connect(function(data)
-    print("Disconnected. Will reconnect:", data.willReconnect)
+AFKTY.OnDisconnected:Connect(function()
+    print("Disconnected!")
 end)
-```
 
----
-
-### Afkty.OnReconnecting
-
-Fired before each reconnection attempt.
-
-```lua
-Afkty.OnReconnecting:Connect(function(data)
-    print("Reconnecting:", data.attempt, "/", data.maxAttempts)
-end)
-```
-
----
-
-### Afkty.OnCommand
-
-Fired when a command is received from the mobile app.
-
-```lua
-Afkty.OnCommand:Connect(function(data)
+AFKTY.OnCommand:Connect(function(data)
     if data.command == "stop" then
-        Afkty:Disconnect("Stopped by mobile")
-    elseif data.command == "teleport" then
-        -- Handle teleport
+        AFKTY:Disconnect("Stopped by user")
     end
 end)
-```
 
----
-
-### Afkty.OnError
-
-Fired when an error occurs.
-
-```lua
-Afkty.OnError:Connect(function(data)
+AFKTY.OnError:Connect(function(data)
     warn("Error:", data.code, data.message)
 end)
 ```
 
-**Error Codes:**
-- `WEBSOCKET_NOT_SUPPORTED` - Executor lacks WebSocket
-- `CONNECTION_FAILED` - Failed to connect
-- `MAX_RECONNECT_ATTEMPTS` - Exceeded retry limit
-- `SERVER_ERROR` - Server error
-
 ---
 
-### Afkty.OnRateLimited
+## For Hub Developers
 
-Fired when rate limited by the server.
+### Apply for a Hub Key
 
-```lua
-Afkty.OnRateLimited:Connect(function(data)
-    warn("Rate limited:", data.message)
-end)
+```
+POST https://api.afkty.com/api/v1/hubs/apply
+
+{
+    "name": "My Script Hub",
+    "ownerEmail": "dev@example.com",
+    "discordUrl": "https://discord.gg/xxx"
+}
 ```
 
----
-
-## Complete Example
+### Embed in Your Script
 
 ```lua
-local Afkty = loadstring(game:HttpGet("YOUR_SDK_URL"))()
+local HUB_KEY = "hub_live_xxx"  -- Your hub key
 
--- Setup event handlers
-Afkty.OnConnected:Connect(function(data)
-    print("Connected to Afkty")
-    Afkty:Log("Script initialized")
-end)
+local AFKTY = loadstring(game:HttpGet("https://api.afkty.com/sdk/v3"))()
 
-Afkty.OnDisconnected:Connect(function(data)
-    print("Disconnected from Afkty")
-end)
-
-Afkty.OnCommand:Connect(function(data)
-    if data.command == "stop" then
-        running = false
-        Afkty:Disconnect("Stopped by user")
-    end
-end)
-
-Afkty.OnRateLimited:Connect(function()
-    warn("Slow down! Rate limited by server")
-end)
-
--- Initialize
-Afkty:Init({
-    serverUrl = "ws://192.168.1.9:3000/ws",
-    connectionKey = "afk-123-456",
-    debug = true
+AFKTY:Init({
+    hubKey = HUB_KEY,
+    userToken = Settings.AfktyKey  -- User enters their key
 })
-
--- Main loop
-local running = true
-local totalCoins = 0
-
-while running and Afkty:IsConnected() do
-    -- Your farming logic
-    local coins = collectCoins()
-    totalCoins = totalCoins + coins
-    
-    Afkty:Log("Collected " .. coins .. " coins")
-    Afkty:SetStatus("Farming: " .. totalCoins .. " coins")
-    
-    if totalCoins >= 1000 then
-        Afkty:Notify("Milestone!", "Collected 1000 coins")
-        totalCoins = 0
-    end
-    
-    task.wait(1)
-end
-
-Afkty:Disconnect("Script ended")
 ```
 
 ---
 
 ## Rate Limits
 
-The backend enforces rate limits to prevent abuse:
-
-| Method | Limit |
-|--------|-------|
-| Log | 30/minute |
-| SetStatus | 6/minute |
-| Notify | 5/minute |
-
-The SDK includes built-in protections:
-- **Log batching** - Logs are batched and sent together
-- **Status cooldown** - Duplicate/frequent status updates are skipped
-- **Message queuing** - Messages sent while offline are queued
+| Type | Limit |
+|------|-------|
+| Status | 6/min |
+| Logs | 30/min |
+| Notifications | 5/min |
+| Alerts | 5/min |
 
 ---
 
-## Automatic Features
+## Error Codes
 
-- **Heartbeat** - Sent every 10 seconds to maintain connection
-- **Auto-reconnect** - Reconnects with exponential backoff (max 30s)
-- **Message queue** - Queues messages while disconnected (max 50)
-- **Cleanup** - Disconnects when player leaves or game closes
+| Code | Meaning |
+|------|---------|
+| `INVALID_HUB_KEY` | Hub key is wrong or doesn't exist |
+| `HUB_NOT_APPROVED` | Hub is pending approval |
+| `HUB_SUSPENDED` | Hub has been suspended |
+| `INVALID_USER_TOKEN` | User key is wrong - check your 6-character key |
+| `USER_SUSPENDED` | User account has been suspended |
+| `WEBSOCKET_NOT_SUPPORTED` | Your executor doesn't support WebSocket |
+| `CONNECTION_FAILED` | Could not connect to server |
+| `RATE_LIMITED` | Too many requests, slow down |
 
 ---
 
 ## Troubleshooting
 
-**Connection fails**
-- Verify server URL is correct
-- Check if backend is running
-- Ensure network allows WebSocket
+### "Not connecting" or "No alerts"
 
-**Authentication fails**
-- Connection keys are single-use
-- Keys expire after 5 minutes
-- Generate a new key from the API
+1. **Check your executor supports WebSocket**
+   ```lua
+   -- The SDK will print which WebSocket method it's using
+   -- Look for: "Using WebSocket: [method name]"
+   ```
 
-**Rate limited**
-- Reduce frequency of Log/SetStatus/Notify calls
-- Use Log batching (automatic)
-- Listen to OnRateLimited event
+2. **Verify your keys are correct**
+   - `hubKey` - Must start with `hub_live_` or `hub_test_`
+   - `userToken` - Your 6-character key from the app (e.g., `ABC123`)
 
-**Executor not supported**
-- Update to latest executor version
-- Some free executors lack WebSocket support
+3. **Listen for errors**
+   ```lua
+   AFKTY.OnError:Connect(function(data)
+       warn("AFKTY Error:", data.code, data.message)
+   end)
+   ```
+
+4. **Check connection status**
+   ```lua
+   AFKTY.OnConnected:Connect(function()
+       print("✓ AFKTY Connected!")
+   end)
+   
+   AFKTY.OnDisconnected:Connect(function()
+       warn("✗ AFKTY Disconnected!")
+   end)
+   ```
+
+### "Connection drops frequently"
+
+The SDK auto-reconnects, but if you're having issues:
+- Check your internet connection
+- Make sure the game isn't being rate-limited
+- The script might be getting kicked by anti-cheat
+
+### "No alarm sound on phone"
+
+1. Open AFKTY app and check you're connected (green status)
+2. Make sure notifications are enabled for AFKTY
+3. Check your phone isn't on Do Not Disturb
+4. Verify FCM token is registered (check app settings)
+
+---
+
+## Complete Example
+
+```lua
+-- Load SDK
+local AFKTY = loadstring(game:HttpGet("https://api.afkty.com/sdk/v3"))()
+
+-- Set up event handlers BEFORE Init
+AFKTY.OnConnected:Connect(function()
+    print("✓ AFKTY Connected! You will get alerts if this crashes.")
+end)
+
+AFKTY.OnError:Connect(function(data)
+    warn("AFKTY Error:", data.code, "-", data.message)
+end)
+
+AFKTY.OnDisconnected:Connect(function()
+    warn("AFKTY Disconnected - auto-reconnecting...")
+end)
+
+-- Initialize with your keys
+local success = AFKTY:Init({
+    hubKey = "hub_live_xxx",      -- From script developer
+    userToken = "ABC123"          -- Your key from AFKTY app
+})
+
+if success then
+    print("AFKTY initialized!")
+    
+    -- Update your status as you play
+    AFKTY:SetStatus("Starting script...")
+    
+    -- Your script logic here
+    while true do
+        AFKTY:SetStatus("Farming - Level 50")
+        task.wait(30)
+    end
+else
+    warn("AFKTY failed to initialize")
+end
+```
+
+---
+
+## Support
+
+Discord: https://discord.gg/CX5fMuesqp
+Documentation: https://afkty-docs.vercel.app

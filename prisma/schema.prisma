@@ -1,0 +1,240 @@
+// AFKTY Database Schema
+// Complete system for Hubs, Users, Sessions, and Device Management
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+// ============================================================================
+// HUBS - Script developers who integrate AFKTY SDK
+// ============================================================================
+
+model Hub {
+  id        String   @id @default(cuid())
+  
+  // Identity
+  name      String              // "Blox Fruits Hub"
+  slug      String   @unique    // "bloxfruits" - for URLs
+  
+  // Contact
+  ownerEmail    String
+  discordUrl    String?
+  websiteUrl    String?
+  description   String?
+  
+  // API Key (the important part - allows SDK usage)
+  apiKey        String   @unique    // "hub_live_xxx" - shown once
+  apiKeyHash    String              // Hashed for storage
+  apiKeyHint    String              // Last 6 chars "...abc123"
+  
+  // Status
+  status        HubStatus @default(PENDING)
+  approvedAt    DateTime?
+  approvedBy    String?
+  suspendedAt   DateTime?
+  suspendReason String?
+  
+  // Stats (for analytics)
+  totalConnections   Int @default(0)
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  sessions      Session[]
+  
+  @@index([apiKey])
+  @@index([status])
+}
+
+enum HubStatus {
+  PENDING     // Waiting for approval
+  APPROVED    // Can use SDK
+  SUSPENDED   // Blocked
+  REJECTED    // Application denied
+}
+
+// ============================================================================
+// USERS - People who use scripts and receive alerts
+// ============================================================================
+
+model User {
+  id        String   @id @default(cuid())
+  
+  // Account
+  email         String   @unique
+  username      String
+  passwordHash  String
+  
+  // User Token - permanent token for SDK authentication
+  userToken         String   @unique    // 6-char alphanumeric key (e.g., "ABC123")
+  userTokenHash     String              // Hashed for secure storage
+  userTokenHint     String              // Same as token (since it's short)
+  userTokenCreatedAt DateTime @default(now())
+  
+  // Account Status
+  status        UserStatus @default(ACTIVE)
+  
+  // Settings
+  alertSound        String @default("alarm")    // alarm, notification, silent
+  quietHoursEnabled Boolean @default(false)
+  quietHoursStart   String?                     // "23:00"
+  quietHoursEnd     String?                     // "07:00"
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastLoginAt   DateTime?
+  
+  // Relations
+  devices       Device[]
+  sessions      Session[]
+  
+  @@index([userToken])
+  @@index([email])
+}
+
+enum UserStatus {
+  ACTIVE
+  SUSPENDED
+  DELETED
+}
+
+// ============================================================================
+// DEVICES - User's phones/devices for push notifications
+// ============================================================================
+
+model Device {
+  id        String   @id @default(cuid())
+  
+  // Owner
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // FCM Token (for push notifications)
+  fcmToken      String   @unique
+  
+  // Device Info
+  name          String?              // "My iPhone", "Samsung Galaxy"
+  platform      String?              // "ios", "android"
+  appVersion    String?              // "1.0.0"
+  
+  // Status
+  isActive      Boolean @default(true)
+  lastSeenAt    DateTime @default(now())
+  
+  // Token Management
+  tokenUpdatedAt DateTime @default(now())
+  failedAttempts Int @default(0)     // Track failed push attempts
+  lastFailReason String?              // "NotRegistered", "InvalidToken"
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([fcmToken])
+  @@index([isActive])
+}
+
+// ============================================================================
+// SESSIONS - Active and historical connections
+// ============================================================================
+
+model Session {
+  id        String   @id @default(cuid())
+  
+  // Who
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Which hub's script (for stats only, not a hard relationship)
+  hubId     String?
+  hub       Hub?     @relation(fields: [hubId], references: [id], onDelete: SetNull)
+  
+  // Game Info
+  gameName      String?
+  gamePlaceId   String?
+  gameJobId     String?
+  executor      String?
+  
+  // WebSocket Info
+  wsClientId    String?   @unique    // Internal WebSocket client ID
+  
+  // Status
+  status        SessionStatus @default(CONNECTING)
+  currentStatus String?              // "Farming Zone 1" - live status text
+  
+  // Timeline
+  connectedAt       DateTime?
+  lastHeartbeatAt   DateTime?
+  disconnectedAt    DateTime?
+  
+  // Disconnect Info
+  disconnectReason  DisconnectReason?
+  disconnectMessage String?
+  
+  // Alert Info
+  alertSent         Boolean @default(false)
+  alertSentAt       DateTime?
+  alertDelivered    Boolean @default(false)
+  alertError        String?
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  @@index([userId])
+  @@index([hubId])
+  @@index([status])
+  @@index([wsClientId])
+  @@index([createdAt])
+}
+
+enum SessionStatus {
+  CONNECTING    // WebSocket connected, not authenticated yet
+  ACTIVE        // Authenticated and monitored
+  DISCONNECTED  // Clean disconnect
+  TIMEOUT       // Dead Man's Switch triggered
+  ERROR         // Error occurred
+}
+
+enum DisconnectReason {
+  MANUAL          // User/script called disconnect
+  TIMEOUT         // Heartbeat timeout (crash/kick/internet)
+  KICKED          // Detected kick from game
+  ERROR           // Error in connection
+  SERVER_SHUTDOWN // Server maintenance
+  TOKEN_REVOKED   // User regenerated their token
+  REPLACED        // New connection replaced this one
+}
+
+// ============================================================================
+// ADMINS - For hub approval and system management
+// ============================================================================
+
+model Admin {
+  id        String   @id @default(cuid())
+  
+  email         String   @unique
+  passwordHash  String
+  name          String
+  
+  role          AdminRole @default(MODERATOR)
+  
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  lastLoginAt   DateTime?
+}
+
+enum AdminRole {
+  SUPER_ADMIN   // Full access
+  MODERATOR     // Can approve/suspend hubs
+}

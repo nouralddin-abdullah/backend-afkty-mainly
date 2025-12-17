@@ -1,0 +1,707 @@
+{
+  "info": {
+    "name": "AFKTY API v2.0",
+    "description": "Complete API collection for AFKTY Backend - Hub & User Management, Sessions, Devices",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000",
+      "type": "string"
+    },
+    {
+      "key": "userToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "adminToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "userSdkToken",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "hubApiKey",
+      "value": "",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Health & Status",
+      "item": [
+        {
+          "name": "Health Check",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/health",
+              "host": ["{{baseUrl}}"],
+              "path": ["health"]
+            }
+          }
+        },
+        {
+          "name": "Server Status",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/status",
+              "host": ["{{baseUrl}}"],
+              "path": ["status"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users - Public",
+      "item": [
+        {
+          "name": "Register User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set('userToken', jsonData.token);",
+                  "}",
+                  "if (jsonData.userToken) {",
+                  "    pm.collectionVariables.set('userSdkToken', jsonData.userToken);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"username\": \"TestUser\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/register",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "register"]
+            }
+          }
+        },
+        {
+          "name": "Login User",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set('userToken', jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"test@example.com\",\n  \"password\": \"password123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "login"]
+            }
+          }
+        },
+        {
+          "name": "Validate User Token (SDK Token)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"userToken\": \"{{userSdkToken}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/validate-token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "validate-token"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users - Protected",
+      "item": [
+        {
+          "name": "Get My Profile",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Update My Settings",
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"username\": \"NewUsername\",\n  \"alertSound\": \"alarm\",\n  \"quietHoursEnabled\": true,\n  \"quietHoursStart\": \"23:00\",\n  \"quietHoursEnd\": \"07:00\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "me"]
+            }
+          }
+        },
+        {
+          "name": "Get My SDK Token",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "me", "token"]
+            }
+          }
+        },
+        {
+          "name": "Regenerate SDK Token",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me/token/regenerate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "me", "token", "regenerate"]
+            }
+          }
+        },
+        {
+          "name": "Change Password",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"currentPassword\": \"password123\",\n  \"newPassword\": \"newpassword123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me/password",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "me", "password"]
+            }
+          }
+        },
+        {
+          "name": "Logout",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/logout",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "logout"]
+            }
+          }
+        },
+        {
+          "name": "Delete My Account",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"password\": \"password123\",\n  \"confirmDelete\": \"DELETE_MY_ACCOUNT\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "me"]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users - Devices",
+      "item": [
+        {
+          "name": "Get My Devices",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me/devices",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "me", "devices"]
+            }
+          }
+        },
+        {
+          "name": "Register Device (FCM)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"fcmToken\": \"your-fcm-token-from-mobile-app\",\n  \"name\": \"iPhone 15 Pro\",\n  \"platform\": \"ios\",\n  \"appVersion\": \"1.0.0\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me/devices",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "me", "devices"]
+            }
+          }
+        },
+        {
+          "name": "Update FCM Token",
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"oldToken\": \"old-fcm-token\",\n  \"newToken\": \"new-fcm-token\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me/devices/token",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "me", "devices", "token"]
+            }
+          }
+        },
+        {
+          "name": "Remove Device",
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me/devices/:deviceId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "me", "devices", ":deviceId"],
+              "variable": [
+                {
+                  "key": "deviceId",
+                  "value": "device-id-here"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Users - Sessions",
+      "item": [
+        {
+          "name": "Get My Active Sessions",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me/sessions",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "me", "sessions"]
+            }
+          }
+        },
+        {
+          "name": "Get Session History",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{userToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/users/me/history?page=1&limit=20",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "users", "me", "history"],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Hubs - Public",
+      "item": [
+        {
+          "name": "Apply for Hub",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.apiKey) {",
+                  "    pm.collectionVariables.set('hubApiKey', jsonData.apiKey);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"name\": \"Blox Fruits Hub\",\n  \"slug\": \"bloxfruits-hub\",\n  \"ownerEmail\": \"hubowner@example.com\",\n  \"description\": \"The best Blox Fruits script with AFKTY integration\",\n  \"discordUrl\": \"https://discord.gg/example\",\n  \"websiteUrl\": \"https://example.com\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hubs/apply",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hubs", "apply"]
+            }
+          }
+        },
+        {
+          "name": "Validate Hub API Key",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"apiKey\": \"{{hubApiKey}}\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hubs/validate",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hubs", "validate"]
+            }
+          }
+        },
+        {
+          "name": "Get Hub Info by Slug",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/hubs/:slug",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "hubs", ":slug"],
+              "variable": [
+                {
+                  "key": "slug",
+                  "value": "bloxfruits-hub"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "Admin",
+      "item": [
+        {
+          "name": "Admin Login",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "var jsonData = pm.response.json();",
+                  "if (jsonData.token) {",
+                  "    pm.collectionVariables.set('adminToken', jsonData.token);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@afkty.com\",\n  \"password\": \"admin123\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/login",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "login"]
+            }
+          }
+        },
+        {
+          "name": "List All Hubs",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/hubs?status=PENDING",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "hubs"],
+              "query": [
+                {
+                  "key": "status",
+                  "value": "PENDING",
+                  "description": "Filter: PENDING, APPROVED, SUSPENDED, REJECTED"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get Hub Details",
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/hubs/:hubId",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "hubs", ":hubId"],
+              "variable": [
+                {
+                  "key": "hubId",
+                  "value": "hub-id-here"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Approve Hub",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              }
+            ],
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/hubs/:hubId/approve",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "hubs", ":hubId", "approve"],
+              "variable": [
+                {
+                  "key": "hubId",
+                  "value": "hub-id-here"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Suspend Hub",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Violation of terms of service\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/hubs/:hubId/suspend",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "hubs", ":hubId", "suspend"],
+              "variable": [
+                {
+                  "key": "hubId",
+                  "value": "hub-id-here"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Reject Hub",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Authorization",
+                "value": "Bearer {{adminToken}}"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"reason\": \"Application does not meet requirements\"\n}"
+            },
+            "url": {
+              "raw": "{{baseUrl}}/api/v1/admin/hubs/:hubId/reject",
+              "host": ["{{baseUrl}}"],
+              "path": ["api", "v1", "admin", "hubs", ":hubId", "reject"],
+              "variable": [
+                {
+                  "key": "hubId",
+                  "value": "hub-id-here"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

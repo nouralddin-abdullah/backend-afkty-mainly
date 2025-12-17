@@ -10,7 +10,7 @@ const router = express.Router();
 
 /**
  * GET /api/v1/sdk
- * Serve the Roblox Lua SDK script
+ * Serve the Roblox Lua SDK script (v2 - simple connectionKey auth)
  */
 router.get('/', (req, res) => {
   try {
@@ -27,31 +27,52 @@ router.get('/', (req, res) => {
 });
 
 /**
+ * GET /api/v1/sdk/v3
+ * Serve the Roblox Lua SDK v3 script (hubKey + userToken auth)
+ */
+router.get('/v3', (req, res) => {
+  try {
+    const sdkPath = join(__dirname, '../../sdk/afkty-v3.lua');
+    const sdkContent = readFileSync(sdkPath, 'utf-8');
+
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=3600');
+    res.send(sdkContent);
+  } catch (error) {
+    console.error('Error serving SDK v3:', error);
+    res.status(404).send('-- SDK v3 not found');
+  }
+});
+
+/**
  * GET /api/v1/sdk/docs
  * Serve SDK documentation
  */
 router.get('/docs', (req, res) => {
   res.json({
     name: 'Afkty Roblox SDK',
-    version: '1.0.0',
+    version: '3.0.0',
     description: 'Always-On Alert System for Roblox Scripts',
-    installation: 'loadstring(game:HttpGet("https://api.afkty.com/v1/sdk"))()',
+    quickStart: {
+      code: 'local AFKTY = loadstring(game:HttpGet("https://api.afkty.com/sdk/v3"))()\nAFKTY.SetUserKey("ABC123")  -- Your 6-character key from the app',
+      description: 'The easiest way to get started'
+    },
     usage: {
-      initialization: {
-        code: 'local Afkty = loadstring(game:HttpGet("https://api.afkty.com/v1/sdk"))()\nAfkty:Init({\n  connectionKey = "afk-123-456",\n  serverUrl = "ws://localhost:3000/ws"\n})',
-        description: 'Initialize the SDK with your connection key'
+      simpleSetup: {
+        code: 'AFKTY.SetUserKey("ABC123")',
+        description: 'Just use your 6-character key from the AFKTY app'
+      },
+      fullSetup: {
+        code: 'Afkty:Init({\n  hubKey = "hub_live_xxx",\n  userToken = "ABC123",\n  serverUrl = "wss://afkty.com/ws"\n})',
+        description: 'Full initialization with hub key (for script developers)'
       },
       status: {
-        code: 'Afkty:SetStatus("Farming Bones")',
+        code: 'AFKTY:SetStatus("Farming Zone 1")',
         description: 'Update current activity status'
       },
       logs: {
-        code: 'Afkty:Log("Quest completed", "info")',
+        code: 'AFKTY:Log("Quest completed", "info")',
         description: 'Send log messages to mobile app'
-      },
-      disconnect: {
-        code: 'Afkty:Disconnect("Manual stop")',
-        description: 'Gracefully disconnect'
       }
     },
     events: {

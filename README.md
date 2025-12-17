@@ -113,6 +113,23 @@ backend/
 - Firebase Admin SDK for secure push notifications
 - Helmet.js for HTTP security headers
 
+## Documentation
+
+Full documentation is available at [afkty-docs.vercel.app](https://afkty-docs.vercel.app) or in the `/docs` folder.
+
+To run documentation locally:
+```bash
+cd docs
+npm install
+npm start
+```
+
+## Support
+
+Join our Discord community for help and updates:
+
+[![Discord](https://img.shields.io/badge/Discord-Join%20Server-5865F2?style=for-the-badge&logo=discord&logoColor=white)](https://discord.gg/CX5fMuesqp)
+
 ## License
 
 MIT

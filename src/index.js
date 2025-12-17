@@ -5,11 +5,14 @@ import helmet from 'helmet';
 import config from './config/index.js';
 import redisService from './services/redis.js';
 import fcmService from './services/fcm.js';
-import websocketService from './services/websocket.js';
+import websocketServiceV2 from './services/websocketV2.js';
+import sessionService from './services/sessionService.js';
+import prisma from './services/database.js';
 
 // Import routes
-import authRoutes from './routes/auth.js';
-import connectionRoutes from './routes/connections.js';
+import hubRoutes from './routes/hubs.js';
+import adminRoutes from './routes/admin.js';
+import userRoutes from './routes/users.js';
 import statusRoutes from './routes/status.js';
 import sdkRoutes from './routes/sdk.js';
 
@@ -31,16 +34,20 @@ if (config.nodeEnv === 'development') {
 }
 
 // Health check
-app.get('/health', (req, res) => {
+app.get('/health', async (req, res) => {
+  const wsStats = websocketServiceV2.getStats();
   res.json({
     status: 'ok',
-    timestamp: Date.now()
+    version: '2.0.0',
+    timestamp: Date.now(),
+    connections: wsStats
   });
 });
 
 // API Routes
-app.use('/api/v1/auth', authRoutes);
-app.use('/api/v1/connections', connectionRoutes);
+app.use('/api/v1/hubs', hubRoutes);
+app.use('/api/v1/admin', adminRoutes);
+app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/status', statusRoutes);
 app.use('/api/v1/sdk', sdkRoutes);
 
@@ -62,29 +69,36 @@ app.use((err, req, res, next) => {
 // Initialize services and start server
 async function start() {
   try {
-    console.log('🚀 Starting Afkty Backend Server...\n');
+    console.log('🚀 Starting Afkty Backend Server v2.0...\n');
 
-    // Connect to Redis
+    // Connect to Database (PostgreSQL via Prisma)
+    await prisma.$connect();
+    console.log('✓ Database connected');
+
+    // Cleanup any stale sessions from previous run
+    await sessionService.cleanupStaleSessions();
+
+    // Connect to Redis (for caching and real-time data)
     await redisService.connect();
 
     // Initialize Firebase
     fcmService.initialize();
 
-    // Initialize WebSocket server
-    websocketService.initialize(server);
+    // Initialize WebSocket server v2
+    websocketServiceV2.initialize(server);
 
-    // Start HTTP server (listen on all interfaces for local network access)
+    // Start HTTP server
     server.listen(config.port, '0.0.0.0', () => {
       console.log(`\n✓ Server running on port ${config.port}`);
       console.log(`✓ Environment: ${config.nodeEnv}`);
-      console.log(`\n📡 Local:   ws://localhost:${config.port}/ws`);
-      console.log(`📡 Network: ws://YOUR_LOCAL_IP:${config.port}/ws`);
-      console.log(`📋 API Docs: http://localhost:${config.port}/api/v1/sdk/docs`);
+      console.log(`\n📡 WebSocket: ws://localhost:${config.port}/ws`);
+      console.log(`📋 API: http://localhost:${config.port}/api/v1`);
       console.log(`💚 Health: http://localhost:${config.port}/health\n`);
-      console.log('🔍 Dead Man\'s Switch is active and monitoring...\n');
-      console.log('⚠️  To find your local IP:');
-      console.log('   Windows: ipconfig (look for IPv4 Address)');
-      console.log('   Mac/Linux: ifconfig (look for inet)\n');
+      console.log('🔍 Dead Man\'s Switch v2 is active...\n');
+      console.log('📌 New Authentication Flow:');
+      console.log('   - Hubs: Register at /api/v1/hubs/apply');
+      console.log('   - Users: Register at /api/v1/users/register');
+      console.log('   - SDK: Connect with hubKey + userToken\n');
     });
   } catch (error) {
     console.error('Failed to start server:', error);
@@ -97,6 +111,8 @@ process.on('SIGINT', async () => {
   console.log('\n🛑 Shutting down gracefully...');
   
   try {
+    await websocketServiceV2.shutdown();
+    await prisma.$disconnect();
     await redisService.disconnect();
     server.close(() => {
       console.log('✓ Server closed');

@@ -24,3 +24,9 @@ Thumbs.db
 .idea/
 *.swp
 *.swo
+
+/src/generated/prisma
+
+docs/
+afkty-app/
+AFKTY-FRONTEND/
