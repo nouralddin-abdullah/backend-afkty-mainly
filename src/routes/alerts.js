@@ -1,5 +1,5 @@
 import express from 'express';
-import authMiddleware from '../middleware/auth.js';
+import { authMiddleware } from '../middleware/auth.js';
 import alertLoopService from '../services/alertLoopService.js';
 
 const router = express.Router();
