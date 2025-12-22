@@ -37,22 +37,39 @@ class FCMService {
     }
 
     try {
+      const title = '🚨 GAME DISCONNECTED';
+      const body = data.reason || 'Your Roblox session has ended';
+      
       const message = {
         token: fcmToken,
-        notification: {
-          title: '🚨 GAME DISCONNECTED',
-          body: data.reason || 'Your Roblox session has ended'
-        },
+        // NO top-level notification - this prevents double notifications on web
+        // Each platform handles its own notification display
         data: {
           type: 'critical_alert',
           sessionId: data.sessionId || '',
           reason: data.reason || 'unknown',
           gameName: data.gameName || 'Unknown Game',
-          timestamp: Date.now().toString()
+          timestamp: Date.now().toString(),
+          // Include title/body in data for service worker to use
+          title: title,
+          body: body
+        },
+        // Web Push configuration - handles web notification display
+        webpush: {
+          headers: {
+            Urgency: 'high'
+          },
+          // Use data only for web - service worker will show notification
+          fcmOptions: {
+            link: '/dashboard'
+          }
         },
         android: {
           priority: 'high',
+          // Android shows notification from this config
           notification: {
+            title: title,
+            body: body,
             channelId: 'critical_alerts',
             priority: 'max',
             sound: 'alarm',
@@ -69,8 +86,8 @@ class FCMService {
           payload: {
             aps: {
               alert: {
-                title: '🚨 GAME DISCONNECTED',
-                body: data.reason || 'Your Roblox session has ended'
+                title: title,
+                body: body
               },
               sound: {
                 critical: 1,
