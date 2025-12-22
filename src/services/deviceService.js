@@ -128,7 +128,7 @@ class DeviceService {
   }
 
   /**
-   * Remove a device
+   * Remove a device (hard delete)
    */
   async removeDevice(userId, deviceId) {
     const device = await prisma.device.findFirst({
@@ -142,10 +142,12 @@ class DeviceService {
       return null;
     }
 
-    return prisma.device.update({
-      where: { id: deviceId },
-      data: { isActive: false }
+    // Hard delete - completely remove the device
+    await prisma.device.delete({
+      where: { id: deviceId }
     });
+    
+    return device;
   }
 
   /**
