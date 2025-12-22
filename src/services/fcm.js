@@ -50,6 +50,11 @@ class FCMService {
           reason: data.reason || 'unknown',
           gameName: data.gameName || 'Unknown Game',
           timestamp: Date.now().toString(),
+          // Unique notification ID to prevent browser collapsing notifications
+          notificationId: data.notificationId || `alert-${Date.now()}`,
+          alertNumber: data.alertNumber?.toString() || '',
+          maxAlerts: data.maxAlerts?.toString() || '',
+          isLifeOrDeath: data.isLifeOrDeath ? 'true' : 'false',
           // Include title/body in data for service worker to use
           title: title,
           body: body

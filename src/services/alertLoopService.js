@@ -123,7 +123,12 @@ class AlertLoopService {
         await fcmService.sendCriticalAlert(device.fcmToken, {
           sessionId: alert.sessionId,
           reason: `🚨 ALERT ${notifNumber}/${alert.maxNotifications}: ${alert.reason}`,
-          gameName: alert.gameName
+          gameName: alert.gameName,
+          // Unique ID for each notification to prevent browser collapsing them
+          notificationId: `lod-${alertId}-${notifNumber}`,
+          alertNumber: notifNumber,
+          maxAlerts: alert.maxNotifications,
+          isLifeOrDeath: true
         });
       }
 
