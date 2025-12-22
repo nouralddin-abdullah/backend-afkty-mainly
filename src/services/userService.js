@@ -133,6 +133,7 @@ class UserService {
         id: true,
         email: true,
         username: true,
+        userToken: true,
         userTokenHint: true,
         userTokenCreatedAt: true,
         status: true,

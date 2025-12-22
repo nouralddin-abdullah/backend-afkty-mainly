@@ -2,6 +2,7 @@ import express from 'express';
 import userService from '../services/userService.js';
 import deviceService from '../services/deviceService.js';
 import sessionService from '../services/sessionService.js';
+import logService from '../services/logService.js';
 import redisService from '../services/redis.js';
 import { authMiddleware, addToBlacklist } from '../middleware/auth.js';
 import { generateToken } from '../utils/auth.js';
@@ -724,6 +725,119 @@ router.delete('/me/sessions/:id', authMiddleware, async (req, res) => {
     res.status(500).json({
       success: false,
       error: 'Failed to stop session'
+    });
+  }
+});
+
+// ============================================================================
+// LOGS
+// ============================================================================
+
+/**
+ * GET /api/v1/users/me/logs
+ * Get recent logs for the authenticated user
+ * Query params: limit (default 100), offset (default 0), sessionId (optional)
+ */
+router.get('/me/logs', authMiddleware, async (req, res) => {
+  try {
+    const { limit = 100, offset = 0, sessionId } = req.query;
+    
+    const logs = await logService.getLogsByUser(req.user.userId, {
+      limit: Math.min(parseInt(limit) || 100, 500), // Max 500 logs
+      offset: parseInt(offset) || 0,
+      sessionId: sessionId || null,
+    });
+
+    // Transform to match frontend format
+    const formattedLogs = logs.map(log => ({
+      id: log.id,
+      sessionId: log.sessionId,
+      level: log.level.toLowerCase(),
+      message: log.message,
+      timestamp: new Date(log.createdAt).getTime(),
+    }));
+
+    res.json({
+      success: true,
+      logs: formattedLogs,
+      count: formattedLogs.length,
+    });
+  } catch (error) {
+    console.error('Error fetching logs:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch logs'
+    });
+  }
+});
+
+/**
+ * GET /api/v1/users/me/logs/:sessionId
+ * Get logs for a specific session
+ */
+router.get('/me/logs/:sessionId', authMiddleware, async (req, res) => {
+  try {
+    const { sessionId } = req.params;
+    const { limit = 100, offset = 0 } = req.query;
+    
+    // Verify session belongs to user
+    const session = await sessionService.getSessionById(sessionId);
+    if (!session || session.userId !== req.user.userId) {
+      return res.status(404).json({
+        success: false,
+        error: 'Session not found'
+      });
+    }
+
+    const logs = await logService.getLogsBySession(sessionId, {
+      limit: Math.min(parseInt(limit) || 100, 500),
+      offset: parseInt(offset) || 0,
+    });
+
+    // Transform to match frontend format
+    const formattedLogs = logs.map(log => ({
+      id: log.id,
+      sessionId: log.sessionId,
+      level: log.level.toLowerCase(),
+      message: log.message,
+      timestamp: new Date(log.createdAt).getTime(),
+    }));
+
+    res.json({
+      success: true,
+      logs: formattedLogs,
+      count: formattedLogs.length,
+    });
+  } catch (error) {
+    console.error('Error fetching session logs:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to fetch logs'
+    });
+  }
+});
+
+/**
+ * DELETE /api/v1/users/me/logs
+ * Clear all logs for the authenticated user
+ */
+router.delete('/me/logs', authMiddleware, async (req, res) => {
+  try {
+    // Delete all logs for this user using Prisma directly
+    const prisma = (await import('../services/database.js')).default;
+    const result = await prisma.sessionLog.deleteMany({
+      where: { userId: req.user.userId }
+    });
+
+    res.json({
+      success: true,
+      message: `Deleted ${result.count} logs`
+    });
+  } catch (error) {
+    console.error('Error clearing logs:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to clear logs'
     });
   }
 });

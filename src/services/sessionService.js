@@ -1,5 +1,6 @@
 import prisma from './database.js';
 import deviceService from './deviceService.js';
+import logService from './logService.js';
 
 /**
  * Session Service
@@ -209,6 +210,14 @@ class SessionService {
     // Send critical alert
     console.log(`🚨 TIMEOUT: Sending critical alert to user ${session.user.username}`);
     
+    // Create persistent log for timeout alert
+    await logService.createLog({
+      sessionId: session.id,
+      userId: session.userId,
+      level: 'error',
+      message: `🚨 TIMEOUT: ${session.gameName || 'Unknown Game'} - Connection lost (possible crash, kick, or internet failure)`,
+    });
+    
     const alertData = {
       sessionId: session.id,
       gameName: session.gameName || 'Unknown Game',
@@ -272,7 +281,16 @@ class SessionService {
         userId,
         status: 'ACTIVE'
       },
-      include: {
+      select: {
+        id: true,
+        gameName: true,
+        gamePlaceId: true,
+        gameJobId: true,
+        executor: true,
+        currentStatus: true,
+        status: true,
+        connectedAt: true,
+        lastHeartbeatAt: true,
         hub: {
           select: { name: true }
         }

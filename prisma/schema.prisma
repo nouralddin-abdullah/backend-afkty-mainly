@@ -191,11 +191,46 @@ model Session {
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
   
+  // Relations
+  logs          SessionLog[]
+  
   @@index([userId])
   @@index([hubId])
   @@index([status])
   @@index([wsClientId])
   @@index([createdAt])
+}
+
+// ============================================================================
+// SESSION LOGS - Persistent log storage
+// ============================================================================
+
+model SessionLog {
+  id        String   @id @default(cuid())
+  
+  // Relations
+  sessionId String
+  session   Session  @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  
+  userId    String   // Denormalized for faster queries
+  
+  // Log Content
+  level     LogLevel @default(INFO)
+  message   String
+  
+  // Timestamps
+  createdAt DateTime @default(now())
+  
+  @@index([sessionId])
+  @@index([userId])
+  @@index([createdAt])
+}
+
+enum LogLevel {
+  DEBUG
+  INFO
+  WARN
+  ERROR
 }
 
 enum SessionStatus {

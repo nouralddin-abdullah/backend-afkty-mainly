@@ -4,7 +4,7 @@ import hubService from './hubService.js';
 import userService from './userService.js';
 import sessionService from './sessionService.js';
 import deviceService from './deviceService.js';
-import redisService from './redis.js';
+import logService from './logService.js';
 import config from '../config/index.js';
 
 /**
@@ -268,14 +268,38 @@ class WebSocketServiceV2 {
       message: 'Connection established'
     });
 
+    // Create persistent log for session start
+    const startLog = await logService.createLog({
+      sessionId: session.id,
+      userId: user.id,
+      level: 'info',
+      message: `Session started: ${gameInfo?.name || 'Unknown Game'} (via ${hub.name})`,
+    });
+
     // Notify mobile apps
     this.notifyMobileApps(user.id, {
       type: 'session_started',
       sessionId: session.id,
       gameName: gameInfo?.name || 'Unknown Game',
       hubName: hub.name,
+      placeId: gameInfo?.placeId?.toString() || null,
+      jobId: gameInfo?.jobId || null,
+      executor: gameInfo?.executor || null,
+      connectedAt: session.connectedAt,
       timestamp: Date.now()
     });
+
+    // Also send the log entry to mobile apps for real-time display
+    if (startLog) {
+      this.notifyMobileApps(user.id, {
+        type: 'log',
+        id: startLog.id,
+        sessionId: session.id,
+        level: 'info',
+        message: `Session started: ${gameInfo?.name || 'Unknown Game'} (via ${hub.name})`,
+        timestamp: Date.now()
+      });
+    }
   }
 
   // ============================================================================
@@ -362,27 +386,25 @@ class WebSocketServiceV2 {
     }
 
     const { message: logMessage, level = 'info' } = message;
+    const timestamp = Date.now();
 
-    // Forward to mobile apps via WebSocket
+    // Store in database for persistence
+    const savedLog = await logService.createLog({
+      sessionId: client.sessionId,
+      userId: client.userId,
+      level,
+      message: logMessage,
+    });
+
+    // Forward to mobile/web apps via WebSocket
     this.notifyMobileApps(client.userId, {
       type: 'log',
+      id: savedLog?.id || timestamp.toString(),
       sessionId: client.sessionId,
       message: logMessage,
       level,
-      timestamp: Date.now()
+      timestamp
     });
-
-    // Store in Redis for history
-    await redisService.client?.lPush(
-      `logs:${client.userId}`,
-      JSON.stringify({
-        sessionId: client.sessionId,
-        message: logMessage,
-        level,
-        timestamp: Date.now()
-      })
-    );
-    await redisService.client?.lTrim(`logs:${client.userId}`, 0, 199);
   }
 
   async handleStatus(ws, client, message) {
@@ -423,6 +445,14 @@ class WebSocketServiceV2 {
       return;
     }
 
+    // Create persistent log for notification
+    const notifyLog = await logService.createLog({
+      sessionId: client.sessionId,
+      userId: client.userId,
+      level: 'info',
+      message: `📢 ${title}: ${body}`,
+    });
+
     // Forward to mobile via WebSocket
     this.notifyMobileApps(client.userId, {
       type: 'notification',
@@ -431,6 +461,18 @@ class WebSocketServiceV2 {
       body,
       timestamp: Date.now()
     });
+
+    // Also send log entry for real-time display
+    if (notifyLog) {
+      this.notifyMobileApps(client.userId, {
+        type: 'log',
+        id: notifyLog.id,
+        sessionId: client.sessionId,
+        level: 'info',
+        message: `📢 ${title}: ${body}`,
+        timestamp: Date.now()
+      });
+    }
 
     // Send FCM push notification
     await deviceService.sendPushToUser(client.userId, {
@@ -463,12 +505,32 @@ class WebSocketServiceV2 {
       lastStatus: session?.currentStatus
     };
 
+    // Create persistent log for alert
+    const alertLog = await logService.createLog({
+      sessionId: client.sessionId,
+      userId: client.userId,
+      level: 'error',
+      message: `🚨 ALERT: ${alertReason} - ${alertData.gameName}`,
+    });
+
     // Forward to mobile via WebSocket
     this.notifyMobileApps(client.userId, {
       type: 'critical_alert',
       ...alertData,
       timestamp: Date.now()
     });
+
+    // Also send log entry for real-time display
+    if (alertLog) {
+      this.notifyMobileApps(client.userId, {
+        type: 'log',
+        id: alertLog.id,
+        sessionId: client.sessionId,
+        level: 'error',
+        message: `🚨 ALERT: ${alertReason} - ${alertData.gameName}`,
+        timestamp: Date.now()
+      });
+    }
 
     // Send FCM critical alert
     await deviceService.sendCriticalAlertToUser(client.userId, alertData);
@@ -487,6 +549,14 @@ class WebSocketServiceV2 {
     // Update session
     await sessionService.disconnectSession(client.id, 'MANUAL', reason);
 
+    // Create persistent log for session end
+    const endLog = await logService.createLog({
+      sessionId: client.sessionId,
+      userId: client.userId,
+      level: 'warn',
+      message: `Session ended: ${reason}`,
+    });
+
     // Notify mobile
     this.notifyMobileApps(client.userId, {
       type: 'session_ended',
@@ -494,6 +564,18 @@ class WebSocketServiceV2 {
       reason,
       timestamp: Date.now()
     });
+
+    // Also send log entry for real-time display
+    if (endLog) {
+      this.notifyMobileApps(client.userId, {
+        type: 'log',
+        id: endLog.id,
+        sessionId: client.sessionId,
+        level: 'warn',
+        message: `Session ended: ${reason}`,
+        timestamp: Date.now()
+      });
+    }
 
     this.send(ws, {
       type: 'disconnected',
@@ -558,10 +640,14 @@ class WebSocketServiceV2 {
           id: user.id,
           username: user.username
         },
+        userToken: user.userToken,
         sessions: sessions.map(s => ({
           id: s.id,
           gameName: s.gameName,
           hubName: s.hub?.name,
+          placeId: s.gamePlaceId,
+          jobId: s.gameJobId,
+          executor: s.executor,
           status: 'ACTIVE',
           currentStatus: s.currentStatus,
           connectedAt: s.connectedAt,
@@ -630,6 +716,9 @@ class WebSocketServiceV2 {
         id: s.id,
         gameName: s.gameName,
         hubName: s.hub?.name,
+        placeId: s.gamePlaceId,
+        jobId: s.gameJobId,
+        executor: s.executor,
         status: 'ACTIVE',
         currentStatus: s.currentStatus,
         connectedAt: s.connectedAt,
