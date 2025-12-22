@@ -167,20 +167,33 @@ class FCMService {
     }
 
     try {
+      const notifTitle = title || '✨ Afkty Notification';
+      const notifBody = body || 'You have a new notification';
+      
       const message = {
         token: fcmToken,
-        notification: {
-          title: title || '✨ Afkty Notification',
-          body: body || 'You have a new notification'
-        },
+        // NO top-level notification - prevents double notifications on web
         data: {
           type: 'notification',
+          title: notifTitle,
+          body: notifBody,
           timestamp: Date.now().toString(),
           ...data
+        },
+        // Web handled by service worker using data payload
+        webpush: {
+          headers: {
+            Urgency: 'normal'
+          },
+          fcmOptions: {
+            link: '/dashboard'
+          }
         },
         android: {
           priority: 'high',
           notification: {
+            title: notifTitle,
+            body: notifBody,
             channelId: 'default',
             sound: 'default'
           }
@@ -193,8 +206,8 @@ class FCMService {
           payload: {
             aps: {
               alert: {
-                title: title || '✨ Afkty Notification',
-                body: body || 'You have a new notification'
+                title: notifTitle,
+                body: notifBody
               },
               sound: 'default'
             }
