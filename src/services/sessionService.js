@@ -1,6 +1,7 @@
 import prisma from './database.js';
 import deviceService from './deviceService.js';
 import logService from './logService.js';
+import alertLoopService from './alertLoopService.js';
 
 /**
  * Session Service
@@ -175,7 +176,8 @@ class SessionService {
             alertSound: true,
             quietHoursEnabled: true,
             quietHoursStart: true,
-            quietHoursEnd: true
+            quietHoursEnd: true,
+            lifeOrDeathMode: true
           }
         },
         hub: {
@@ -228,6 +230,16 @@ class SessionService {
     };
 
     const alertResult = await deviceService.sendCriticalAlertToUser(session.userId, alertData);
+
+    // Start Life or Death Mode alert loop if enabled
+    if (session.user.lifeOrDeathMode) {
+      await alertLoopService.startAlertLoop(
+        session.userId,
+        session.id,
+        alertData.reason,
+        alertData.gameName
+      );
+    }
 
     // Update session
     await prisma.session.update({

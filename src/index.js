@@ -15,6 +15,8 @@ import adminRoutes from './routes/admin.js';
 import userRoutes from './routes/users.js';
 import statusRoutes from './routes/status.js';
 import sdkRoutes from './routes/sdk.js';
+import alertRoutes from './routes/alerts.js';
+import alertLoopService from './services/alertLoopService.js';
 
 const app = express();
 const server = createServer(app);
@@ -50,6 +52,7 @@ app.use('/api/v1/admin', adminRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/status', statusRoutes);
 app.use('/api/v1/sdk', sdkRoutes);
+app.use('/api/v1/alerts', alertRoutes);
 
 // 404 handler
 app.use((req, res) => {
@@ -83,6 +86,9 @@ async function start() {
 
     // Initialize Firebase
     fcmService.initialize();
+
+    // Restore active alert loops (Life or Death Mode)
+    await alertLoopService.restoreActiveLoops();
 
     // Initialize WebSocket server v2
     websocketServiceV2.initialize(server);

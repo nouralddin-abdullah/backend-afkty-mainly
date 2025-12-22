@@ -87,6 +87,7 @@ model User {
   quietHoursEnabled Boolean @default(false)
   quietHoursStart   String?                     // "23:00"
   quietHoursEnd     String?                     // "07:00"
+  lifeOrDeathMode   Boolean @default(false)     // Relentless notifications until acknowledged
   
   // Timestamps
   createdAt     DateTime @default(now())
@@ -96,6 +97,7 @@ model User {
   // Relations
   devices       Device[]
   sessions      Session[]
+  activeAlerts  ActiveAlert[]
   
   @@index([userToken])
   @@index([email])
@@ -272,4 +274,38 @@ model Admin {
 enum AdminRole {
   SUPER_ADMIN   // Full access
   MODERATOR     // Can approve/suspend hubs
+}
+
+// ============================================================================
+// ACTIVE ALERTS - Life or Death Mode alert tracking
+// ============================================================================
+
+model ActiveAlert {
+  id                String    @id @default(cuid())
+  
+  // Owner
+  userId            String
+  user              User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Source session
+  sessionId         String
+  
+  // Alert details
+  reason            String
+  gameName          String?
+  
+  // Tracking
+  startedAt         DateTime  @default(now())
+  acknowledged      Boolean   @default(false)
+  acknowledgedAt    DateTime?
+  notificationsSent Int       @default(0)
+  maxNotifications  Int       @default(30)  // 5 minutes at 10s intervals
+  
+  // Timestamps
+  createdAt         DateTime  @default(now())
+  updatedAt         DateTime  @updatedAt
+  
+  @@index([userId])
+  @@index([acknowledged])
+  @@index([createdAt])
 }

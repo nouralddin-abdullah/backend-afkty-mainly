@@ -141,6 +141,7 @@ class UserService {
         quietHoursEnabled: true,
         quietHoursStart: true,
         quietHoursEnd: true,
+        lifeOrDeathMode: true,
         createdAt: true,
         lastLoginAt: true,
         devices: {
@@ -226,7 +227,7 @@ class UserService {
    * Update user settings
    */
   async updateSettings(userId, settings) {
-    const allowedFields = ['alertSound', 'quietHoursEnabled', 'quietHoursStart', 'quietHoursEnd', 'username'];
+    const allowedFields = ['alertSound', 'quietHoursEnabled', 'quietHoursStart', 'quietHoursEnd', 'username', 'lifeOrDeathMode'];
     const data = {};
     
     for (const field of allowedFields) {
@@ -244,7 +245,8 @@ class UserService {
         alertSound: true,
         quietHoursEnabled: true,
         quietHoursStart: true,
-        quietHoursEnd: true
+        quietHoursEnd: true,
+        lifeOrDeathMode: true
       }
     });
   }
